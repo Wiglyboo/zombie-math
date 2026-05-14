@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+  <link href="https://fonts.googleapis.com/css2?family=Gochi+Hand&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zombie Math Defense</title>
@@ -22,7 +23,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Gochi Hand', system-ui, sans-serif;
     }
 
     #gameContainer {
@@ -85,6 +86,14 @@
     heartLifeImg.src = 'assets_refined/heart_life.png';
     const heartLostImg = new Image();
     heartLostImg.src = 'assets_refined/heart_life_lost.png';
+
+    const splashImg = new Image();
+    splashImg.src = 'assets_refined/Splash_screen.png';
+    const startBtnImg = new Image();
+    startBtnImg.src = 'assets_refined/Start_button.png';
+    
+    const paperImg = new Image();
+    paperImg.src = 'assets_refined/piece_of_paper.png';
 
     // ── Game state ────────────────────────────────────────────────
     let phase = 'START'; // START | PLAY | WAVE_CLEAR | GAMEOVER | WIN
@@ -246,7 +255,7 @@
         ctx.beginPath(); ctx.moveTo(x - 5, by + bh); ctx.lineTo(x + 5, by + bh); ctx.lineTo(x, by + bh + 7); ctx.closePath(); ctx.fill();
         // text
         ctx.fillStyle = '#3E2723';
-        ctx.font = 'bold 14px "Segoe UI",monospace';
+        ctx.font = 'bold 14px "Gochi Hand",monospace';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(this.expr, x, by + bh / 2);
         ctx.textBaseline = 'alphabetic';
@@ -352,7 +361,7 @@
 
       // Archer Answer Bubble
       const bText = currentInput === '' ? '?' : currentInput;
-      ctx.font = 'bold 24px "Segoe UI"';
+      ctx.font = 'bold 24px "Gochi Hand"';
       const bw = Math.max(60, ctx.measureText(bText).width + 30);
       const bh = 40, bx = ax - bw / 2, by = ay - 175; // Moved higher to sit above the hero's head
 
@@ -396,13 +405,19 @@
       }
 
       // Wave
-      ctx.font = 'bold 18px "Segoe UI"';
-      ctx.fillStyle = '#79B8FF';
+      ctx.font = 'bold 20px "Gochi Hand"';
+      if (paperImg.complete && paperImg.width > 0) {
+        ctx.drawImage(paperImg, W / 2 - 90, 5, 180, 45);
+      }
+      ctx.fillStyle = '#3E2723';
       ctx.textAlign = 'center';
       ctx.fillText(`WAVE  ${wave} / ${MAX_WAVES}`, W / 2, 32);
 
       // Score
-      ctx.fillStyle = '#7EE787';
+      if (paperImg.complete && paperImg.width > 0) {
+        ctx.drawImage(paperImg, W - 150, 5, 140, 45);
+      }
+      ctx.fillStyle = '#3E2723';
       ctx.textAlign = 'right';
       ctx.fillText(`SCORE  ${score}`, W - 20, 32);
     }
@@ -415,15 +430,15 @@
 
       if (phase === 'START') {
         ctx.fillStyle = '#7EE787';
-        ctx.font = 'bold 64px "Segoe UI"';
+        ctx.font = 'bold 64px "Gochi Hand"';
         ctx.fillText(title, W / 2, H / 2 - 100);
 
         ctx.fillStyle = '#e6edf3';
-        ctx.font = 'bold 24px "Segoe UI"';
+        ctx.font = 'bold 24px "Gochi Hand"';
         ctx.fillText("HOW TO PLAY", W / 2, H / 2 - 30);
 
         ctx.fillStyle = '#8b949e';
-        ctx.font = '20px "Segoe UI"';
+        ctx.font = '20px "Gochi Hand"';
         ctx.fillText("⌨️ Type the answer and press ENTER to shoot", W / 2, H / 2 + 15);
         ctx.fillText("🎯 Click a zombie or use ↑ ↓ to change target", W / 2, H / 2 + 45);
         ctx.fillText("🛡️ Defend the castle for 8 waves!", W / 2, H / 2 + 75);
@@ -431,20 +446,27 @@
         ctx.fillStyle = '#238636';
         roundRect(W / 2 - 110, H / 2 + 130, 220, 50, 8); ctx.fill();
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 20px "Segoe UI"';
+        ctx.font = 'bold 20px "Gochi Hand"';
         ctx.fillText(btnText, W / 2, H / 2 + 162);
       } else {
         ctx.fillStyle = '#7EE787';
-        ctx.font = 'bold 56px "Segoe UI"';
+        ctx.font = 'bold 56px "Gochi Hand"';
         ctx.fillText(title, W / 2, H / 2 - 40);
         ctx.fillStyle = '#ccc';
-        ctx.font = '22px "Segoe UI"';
+        ctx.font = '22px "Gochi Hand"';
         ctx.fillText(sub, W / 2, H / 2 + 20);
         ctx.fillStyle = '#238636';
         roundRect(W / 2 - 90, H / 2 + 60, 180, 46, 8); ctx.fill();
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 18px "Segoe UI"';
+        ctx.font = 'bold 18px "Gochi Hand"';
         ctx.fillText(btnText, W / 2, H / 2 + 88);
+
+        // Go Back Home button
+        ctx.fillStyle = '#1f6feb'; // Blue color
+        roundRect(W / 2 - 90, H / 2 + 120, 180, 46, 8); ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 18px "Gochi Hand"';
+        ctx.fillText('GO BACK HOME', W / 2, H / 2 + 148);
       }
     }
 
@@ -505,16 +527,28 @@
 
     // Click Targeting / Restart
     c.addEventListener('click', e => {
-      if (phase === 'START' || phase === 'GAMEOVER' || phase === 'WIN') {
+      const rect = c.getBoundingClientRect();
+      const scaleX = c.width / rect.width;
+      const scaleY = c.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      if (phase === 'START') {
         wave = 1; score = 0; hp = 5; startWave();
         return;
       }
 
-      if (phase === 'PLAY') {
-        const rect = c.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+      if (phase === 'GAMEOVER' || phase === 'WIN') {
+        const homeX = W / 2 - 90, homeY = H / 2 + 120, btnW = 180, btnH = 46;
+        if (x >= homeX && x <= homeX + btnW && y >= homeY && y <= homeY + btnH) {
+          phase = 'START';
+        } else {
+          wave = 1; score = 0; hp = 5; startWave();
+        }
+        return;
+      }
 
+      if (phase === 'PLAY') {
         // Check if clicked near a zombie
         for (const z of zombies) {
           if (z.alive && !z.dying) {
@@ -622,7 +656,7 @@
           ctx.globalAlpha = p.life; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
         }
         for (const m of msgs) {
-          ctx.globalAlpha = m.life; ctx.fillStyle = m.col; ctx.font = 'bold 18px "Segoe UI"'; ctx.textAlign = 'center'; ctx.fillText(m.text, m.x, m.y); ctx.globalAlpha = 1;
+          ctx.globalAlpha = m.life; ctx.fillStyle = m.col; ctx.font = 'bold 18px "Gochi Hand"'; ctx.textAlign = 'center'; ctx.fillText(m.text, m.x, m.y); ctx.globalAlpha = 1;
         }
       } else {
         drawCastle();
@@ -630,12 +664,30 @@
 
       drawHUD();
 
-      if (phase === 'START') drawOverlay('🧟 ZOMBIE MATH', 'Type answer & press Enter to shoot!', 'CLICK TO START');
-      if (phase === 'GAMEOVER') drawOverlay('💀 GAME OVER', `Score: ${score}  |  You reached Wave ${wave}`, 'CLICK TO RETRY');
-      if (phase === 'WIN') drawOverlay('🏆 YOU WIN!', `Final Score: ${score}  —  All waves cleared!`, 'CLICK TO PLAY AGAIN');
-      if (phase === 'WAVE_CLEAR') {
+      if (phase === 'START') {
+        if (splashImg.complete && splashImg.width > 0) {
+          ctx.drawImage(splashImg, 0, 0, W, H);
+          if (startBtnImg.complete && startBtnImg.width > 0) {
+            const btnW = 330;
+            const btnH = 330 * (startBtnImg.height / startBtnImg.width);
+            
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 8;
+            ctx.drawImage(startBtnImg, W / 2 - btnW / 2, H - btnH - 20, btnW, btnH);
+            ctx.restore();
+          }
+        } else {
+          drawOverlay('🧟 ZOMBIE MATH', 'Type answer & press Enter to shoot!', 'CLICK TO START');
+        }
+      }
+      else if (phase === 'GAMEOVER') drawOverlay('💀 GAME OVER', `Score: ${score}  |  You reached Wave ${wave}`, 'CLICK TO RETRY');
+      else if (phase === 'WIN') drawOverlay('🏆 YOU WIN!', `Final Score: ${score}  —  All waves cleared!`, 'CLICK TO PLAY AGAIN');
+      else if (phase === 'WAVE_CLEAR') {
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
-        ctx.textAlign = 'center'; ctx.fillStyle = '#FFC107'; ctx.font = 'bold 48px "Segoe UI"'; ctx.fillText(`Wave ${wave} Complete!`, W / 2, H / 2);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#FFC107'; ctx.font = 'bold 48px "Gochi Hand"'; ctx.fillText(`Wave ${wave} Complete!`, W / 2, H / 2);
       }
     }
 
