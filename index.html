@@ -95,6 +95,34 @@
     const paperImg = new Image();
     paperImg.src = 'assets_refined/piece_of_paper.png';
 
+    const handboardImg = new Image();
+    handboardImg.src = 'assets_refined/handboard.png';
+
+    const howToPlayImg = new Image();
+    howToPlayImg.src = 'assets_refined/how_to_play.png';
+
+    const endScreenImg = new Image();
+    endScreenImg.src = 'assets_refined/end_screen_empty.png';
+
+    const homeBtnImg = new Image();
+    homeBtnImg.src = 'assets_refined/homw_button 1.png';
+
+    const retryBtnImg = new Image();
+    retryBtnImg.src = 'assets_refined/retry_button 1.png';
+
+    // ── Sounds ────────────────────────────────────────────────────
+    const hordeSnd = new Audio('assets_refined/horde.mp3');
+    const shootSnd = new Audio('assets_refined/shoot.mp3');
+    const hitSnd = new Audio('assets_refined/hit.mp3');
+    const wallHitSnd = new Audio('assets_refined/wall_hit.mp3');
+
+    function playSound(snd) {
+      if (!snd) return;
+      const clone = snd.cloneNode();
+      clone.volume = 0.6;
+      clone.play().catch(e => { /* Ignore errors like before user interaction */ });
+    }
+
     // ── Game state ────────────────────────────────────────────────
     let phase = 'START'; // START | PLAY | WAVE_CLEAR | GAMEOVER | WIN
     let wave = 1;
@@ -189,6 +217,17 @@
         const p = makeProblem(wave);
         this.expr = p.expr;
         this.ans = p.ans;
+
+        // Individual horde sound for this zombie
+        this.snd = hordeSnd.cloneNode();
+        this.snd.loop = true;
+        this.snd.volume = 0.2; // Lower volume since multiple will overlap
+        
+        // Randomize the pitch/speed slightly so they don't perfectly sync up
+        // This makes 5 zombies sound like 5 different voices instead of 1 louder voice
+        this.snd.playbackRate = 0.85 + Math.random() * 0.3; 
+        
+        this.snd.play().catch(e => { /* Ignore play errors before user interaction */ });
       }
       update(dt) {
         if (!this.alive) return;
@@ -204,6 +243,7 @@
         if (this.dying) return;
         this.dying = true;
         this.dyingTimer = 350;
+        if (this.snd) { this.snd.pause(); this.snd = null; }
         spawnParticles(this.x, this.y, '#FF5252');
         if (manualTarget === this) manualTarget = null;
       }
@@ -286,6 +326,7 @@
         this.t += dt * 0.0035;
         if (this.t >= 1) {
           this.t = 1; this.done = true;
+          playSound(hitSnd);
           if (this.target.alive && !this.target.dying) {
             this.target.startDying();
             score += 10 + wave * 2;
@@ -316,6 +357,9 @@
     }
 
     function startWave() {
+      for (const z of zombies) {
+        if (z.snd) { z.snd.pause(); z.snd = null; }
+      }
       zombies = []; arrows = []; particles = [];
       currentInput = ''; manualTarget = null; currentTarget = null;
       buildWave(wave);
@@ -384,12 +428,31 @@
 
     // ── Draw HUD ──────────────────────────────────────────────────
     function drawHUD() {
-      // Hearts (PNG sprites; emoji fallback while loading)
+      // Score (now on left)
+      ctx.font = 'bold 20px "Gochi Hand"';
+      if (paperImg.complete && paperImg.width > 0) {
+        ctx.drawImage(paperImg, 10, 5, 140, 45);
+      }
+      ctx.fillStyle = '#3E2723';
+      ctx.textAlign = 'left';
+      ctx.fillText(`SCORE  ${score}`, 30, 32);
+
+      // Wave (center)
+      ctx.font = 'bold 20px "Gochi Hand"';
+      if (paperImg.complete && paperImg.width > 0) {
+        ctx.drawImage(paperImg, W / 2 - 90, 5, 180, 45);
+      }
+      ctx.fillStyle = '#3E2723';
+      ctx.textAlign = 'center';
+      ctx.fillText(`WAVE  ${wave} / ${MAX_WAVES}`, W / 2, 32);
+
+      // Hearts (now on right)
       const heartGap = 32, heartH = 28;
-      const heartW = heartH; // square frame assets
+      const heartW = heartH;
       const heartY = (50 - heartH) / 2;
+      const startX = W - (5 * heartGap) - 10;
       for (let i = 0; i < 5; i++) {
-        const hx = 20 + i * heartGap;
+        const hx = startX + i * heartGap;
         const full = i < hp;
         const img = full ? heartLifeImg : heartLostImg;
         if (img.complete && img.width > 0) {
@@ -403,23 +466,6 @@
           ctx.fillText('❤', hx, 32);
         }
       }
-
-      // Wave
-      ctx.font = 'bold 20px "Gochi Hand"';
-      if (paperImg.complete && paperImg.width > 0) {
-        ctx.drawImage(paperImg, W / 2 - 90, 5, 180, 45);
-      }
-      ctx.fillStyle = '#3E2723';
-      ctx.textAlign = 'center';
-      ctx.fillText(`WAVE  ${wave} / ${MAX_WAVES}`, W / 2, 32);
-
-      // Score
-      if (paperImg.complete && paperImg.width > 0) {
-        ctx.drawImage(paperImg, W - 150, 5, 140, 45);
-      }
-      ctx.fillStyle = '#3E2723';
-      ctx.textAlign = 'right';
-      ctx.fillText(`SCORE  ${score}`, W - 20, 32);
     }
 
     // ── Overlays ──────────────────────────────────────────────────
@@ -449,24 +495,42 @@
         ctx.font = 'bold 20px "Gochi Hand"';
         ctx.fillText(btnText, W / 2, H / 2 + 162);
       } else {
-        ctx.fillStyle = '#7EE787';
-        ctx.font = 'bold 56px "Gochi Hand"';
-        ctx.fillText(title, W / 2, H / 2 - 40);
+        if (endScreenImg.complete && endScreenImg.width > 0) {
+          ctx.drawImage(endScreenImg, 0, 0, W, H);
+        }
+
         ctx.fillStyle = '#ccc';
         ctx.font = '22px "Gochi Hand"';
-        ctx.fillText(sub, W / 2, H / 2 + 20);
-        ctx.fillStyle = '#238636';
-        roundRect(W / 2 - 90, H / 2 + 60, 180, 46, 8); ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 18px "Gochi Hand"';
-        ctx.fillText(btnText, W / 2, H / 2 + 88);
+        const subY = H / 2 + 64; // Pushed down by another 30 units
+        ctx.fillText(sub, W / 2, subY);
 
-        // Go Back Home button
-        ctx.fillStyle = '#1f6feb'; // Blue color
-        roundRect(W / 2 - 90, H / 2 + 120, 180, 46, 8); ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 18px "Gochi Hand"';
-        ctx.fillText('GO BACK HOME', W / 2, H / 2 + 148);
+        const btnYStart = subY + 40;
+        const btnW = 198; // 10% smaller than 220
+        const gap = 10;
+
+        // Draw Retry button on the left
+        if (retryBtnImg.complete && retryBtnImg.width > 0) {
+          const retryH = btnW * (retryBtnImg.height / retryBtnImg.width);
+          ctx.drawImage(retryBtnImg, W / 2 - btnW - gap / 2, btnYStart, btnW, retryH);
+        } else {
+          ctx.fillStyle = '#238636';
+          roundRect(W / 2 - btnW - gap / 2, btnYStart, btnW, 46, 8); ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 18px "Gochi Hand"';
+          ctx.fillText(btnText, W / 2 - btnW / 2 - gap / 2, btnYStart + 28);
+        }
+
+        // Draw Home button on the right
+        if (homeBtnImg.complete && homeBtnImg.width > 0) {
+          const btnH = btnW * (homeBtnImg.height / homeBtnImg.width);
+          ctx.drawImage(homeBtnImg, W / 2 + gap / 2, btnYStart, btnW, btnH);
+        } else {
+          ctx.fillStyle = '#1f6feb'; // Blue color
+          roundRect(W / 2 + gap / 2, btnYStart, btnW, 46, 8); ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 18px "Gochi Hand"';
+          ctx.fillText('GO BACK HOME', W / 2 + btnW / 2 + gap / 2, btnYStart + 28);
+        }
       }
     }
 
@@ -494,6 +558,7 @@
 
         if (currentTarget && !currentTarget.dying && currentTarget.ans === val) {
           // Hit!
+          playSound(shootSnd);
           arrows.push(new Arrow(currentTarget));
           triggerFeedback('#A5D6A7'); // Green flash
           addMsg(`+${10 + wave * 2}`, currentTarget.x, currentTarget.y - 70, '#7EE787');
@@ -539,8 +604,19 @@
       }
 
       if (phase === 'GAMEOVER' || phase === 'WIN') {
-        const homeX = W / 2 - 90, homeY = H / 2 + 120, btnW = 180, btnH = 46;
-        if (x >= homeX && x <= homeX + btnW && y >= homeY && y <= homeY + btnH) {
+        const subY = H / 2 + 64;
+        const btnYStart = subY + 40;
+        
+        const btnW = 198;
+        const gap = 10;
+        
+        let homeH = 46;
+        if (homeBtnImg.complete && homeBtnImg.width > 0) {
+          homeH = btnW * (homeBtnImg.height / homeBtnImg.width);
+        }
+
+        const homeX = W / 2 + gap / 2;
+        if (x >= homeX && x <= homeX + btnW && y >= btnYStart && y <= btnYStart + homeH) {
           phase = 'START';
         } else {
           wave = 1; score = 0; hp = 5; startWave();
@@ -600,10 +676,15 @@
         for (const z of zombies) {
           z.update(dt);
           if (!z.dying && z.alive && z.reachedCastle()) {
+            playSound(wallHitSnd);
             z.startDying();
             hp--;
             addMsg('-1 ❤', CASTLE_X - 40, LANE_YS[z.lane], '#FF5252');
-            if (hp <= 0) { hp = 0; phase = 'GAMEOVER'; }
+            if (hp <= 0) { 
+              hp = 0; 
+              phase = 'GAMEOVER'; 
+              for (const zz of zombies) { if (zz.snd) zz.snd.pause(); }
+            }
           }
         }
 
@@ -624,7 +705,7 @@
         const allSpawned = spawnQueue.length === 0;
         const allDead = zombies.every(z => !z.alive || z.dying);
         if (allSpawned && allDead && zombies.length > 0) {
-          phase = 'WAVE_CLEAR'; waveEndTimer = 2000;
+          phase = 'WAVE_CLEAR'; waveEndTimer = 2600;
         }
       }
       else if (phase === 'WAVE_CLEAR') {
@@ -667,16 +748,32 @@
       if (phase === 'START') {
         if (splashImg.complete && splashImg.width > 0) {
           ctx.drawImage(splashImg, 0, 0, W, H);
+          
+          if (howToPlayImg.complete && howToPlayImg.width > 0) {
+            const htpW = 450; // Scale width to 450px
+            const htpH = htpW * (howToPlayImg.height / howToPlayImg.width);
+            // Draw slightly below the center
+            ctx.drawImage(howToPlayImg, W / 2 - htpW / 2, H / 2 - htpH / 2 + 60, htpW, htpH);
+          }
+
           if (startBtnImg.complete && startBtnImg.width > 0) {
-            const btnW = 330;
-            const btnH = 330 * (startBtnImg.height / startBtnImg.width);
+            const baseBtnW = 330;
+            const baseBtnH = baseBtnW * (startBtnImg.height / startBtnImg.width);
+            
+            // Pulsate scale between 95% and 105%
+            const scale = 1 + Math.sin(Date.now() * 0.004) * 0.05;
+            const btnW = baseBtnW * scale;
+            const btnH = baseBtnH * scale;
             
             ctx.save();
             ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
             ctx.shadowBlur = 15;
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 8;
-            ctx.drawImage(startBtnImg, W / 2 - btnW / 2, H - btnH - 20, btnW, btnH);
+            
+            // Translate to button center to scale from center
+            ctx.translate(W / 2, H - 20 - baseBtnH / 2);
+            ctx.drawImage(startBtnImg, -btnW / 2, -btnH / 2, btnW, btnH);
             ctx.restore();
           }
         } else {
@@ -687,7 +784,43 @@
       else if (phase === 'WIN') drawOverlay('🏆 YOU WIN!', `Final Score: ${score}  —  All waves cleared!`, 'CLICK TO PLAY AGAIN');
       else if (phase === 'WAVE_CLEAR') {
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
-        ctx.textAlign = 'center'; ctx.fillStyle = '#FFC107'; ctx.font = 'bold 48px "Gochi Hand"'; ctx.fillText(`Wave ${wave} Complete!`, W / 2, H / 2);
+        
+        const totalTime = 2600;
+        const elapsed = totalTime - waveEndTimer;
+        
+        let progress = 1;
+        if (elapsed < 600) {
+            progress = elapsed / 600; // slide in
+        } else if (waveEndTimer < 600) {
+            progress = waveEndTimer / 600; // slide out
+        }
+        
+        const ease = 1 - (1 - progress) * (1 - progress); // ease out quad
+        
+        let bw = 500;
+        let bh = 300; // fallback height
+        if (handboardImg.complete && handboardImg.width > 0) {
+          bh = bw * (handboardImg.height / handboardImg.width);
+        }
+
+        // Animate image Y from above screen to hanging from the top
+        const targetImgY = -15; // Snaps to top
+        const startImgY = -bh - 50;
+        const currentImgY = startImgY + (targetImgY - startImgY) * ease;
+        
+        if (handboardImg.complete && handboardImg.width > 0) {
+          ctx.drawImage(handboardImg, W / 2 - bw / 2, currentImgY, bw, bh);
+        }
+        
+        // Move text down relative to the board
+        const textY = currentImgY + bh / 2 + 40; 
+        
+        ctx.textAlign = 'center'; 
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'white'; 
+        ctx.font = 'bold 48px "Gochi Hand"'; 
+        ctx.fillText(`Wave ${wave} Complete!`, W / 2, textY);
+        ctx.textBaseline = 'alphabetic';
       }
     }
 
